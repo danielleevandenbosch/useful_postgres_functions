@@ -58,3 +58,25 @@ EXCEPTION
         RAISE EXCEPTION 'Index out of bounds: row % col %', row_num, col_num;
 END;
 $$;
+
+
+
+
+CREATE OR REPLACE FUNCTION public.llarge_int(
+    arr integer[],
+    k integer
+)
+RETURNS integer
+LANGUAGE sql
+AS $$
+    /*
+        Author:  Daniel L. Van Den Bosch
+        Date:    2024-12-02
+     */
+    SELECT val
+    FROM (
+        SELECT val, ROW_NUMBER() OVER (ORDER BY val DESC) as rn
+        FROM unnest(arr) as val
+    ) sub
+    WHERE rn = k;
+$$;
