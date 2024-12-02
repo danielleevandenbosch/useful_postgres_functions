@@ -80,3 +80,54 @@ AS $$
     ) sub
     WHERE rn = k;
 $$;
+
+
+
+
+
+CREATE OR REPLACE FUNCTION public.mmatch_int(
+    lookup_value integer,
+    lookup_array integer[],
+    match_type integer DEFAULT 1
+)
+RETURNS integer
+LANGUAGE plpgsql
+AS $$
+/*
+    Author:  Daniel L. Van Den Bosch
+    Date:    2024-12-02
+ */
+BEGIN
+    IF match_type NOT IN (-1, 0, 1) THEN
+        RAISE EXCEPTION 'Invalid match_type: %, must be -1, 0, or 1', match_type;
+    END IF;
+
+    RETURN (
+        WITH indexed_array AS (
+            SELECT val, idx
+            FROM unnest(lookup_array) WITH ORDINALITY AS t(val, idx)
+            WHERE val IS NOT NULL
+        ),
+        filtered_array AS (
+            SELECT val, idx
+            FROM indexed_array
+            WHERE
+                (match_type = 0 AND val = lookup_value) OR
+                (match_type = 1 AND val <= lookup_value) OR
+                (match_type = -1 AND val >= lookup_value)
+        ),
+        ordered_array AS (
+            SELECT val, idx
+            FROM filtered_array
+            ORDER BY
+                CASE
+                    WHEN match_type = 0 THEN NULL
+                    WHEN match_type = 1 THEN val * -1
+                    WHEN match_type = -1 THEN val * 1
+                END,
+                idx
+        )
+        SELECT idx FROM ordered_array LIMIT 1
+    );
+END;
+$$;
