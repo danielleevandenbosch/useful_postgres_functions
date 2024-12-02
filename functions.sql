@@ -22,3 +22,39 @@ BEGIN
     RETURN $1 AND $2;
 END;
 $$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION public.iindex_int(
+    arr integer[],
+    row_num integer,
+    col_num integer DEFAULT 1
+)
+RETURNS integer
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    result integer;
+BEGIN
+    /*
+        Author:  Daniel L. Van Den Bosch
+        Date:    2024-12-02
+     */
+    IF col_num IS NULL THEN
+        -- Handle one-dimensional array
+        IF row_num IS NULL THEN
+            RAISE EXCEPTION 'row_num cannot be NULL for one-dimensional arrays';
+        END IF;
+        result := arr[row_num];
+    ELSE
+        -- Handle two-dimensional array
+        IF row_num IS NULL OR col_num IS NULL THEN
+            RAISE EXCEPTION 'row_num and col_num cannot be NULL for two-dimensional arrays';
+        END IF;
+        result := arr[row_num][col_num];
+    END IF;
+    RETURN result;
+EXCEPTION
+    WHEN array_subscript_error THEN
+        RAISE EXCEPTION 'Index out of bounds: row % col %', row_num, col_num;
+END;
+$$;
