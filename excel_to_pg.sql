@@ -23,6 +23,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+create or replace function public.oor(VARIADIC conditions boolean[]) returns boolean
+    immutable
+    language plpgsql
+as
+$$
+/*
+    Author: Daniel L. Van Den Bosch
+    Date: 2024-12-02
+ */
+BEGIN
+    
+    -- If any condition is true, return true
+    IF EXISTS (
+        SELECT 1
+        FROM unnest(conditions) AS cond
+        WHERE cond IS TRUE
+    ) THEN
+        RETURN TRUE;
+    END IF;
+
+    -- If no conditions are true, return false
+    RETURN FALSE;
+END;
+$$;
+
+
 
 CREATE OR REPLACE FUNCTION public.iindex_int(
     arr integer[],
@@ -129,5 +155,49 @@ BEGIN
         )
         SELECT idx FROM ordered_array LIMIT 1
     );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ccountif(
+    arr anyarray,
+    criteria text
+)
+RETURNS integer
+LANGUAGE plpgsql
+AS $$
+/*
+    Author: Daniel Van Den Bosch
+    Date: 2024-12-02
+ */
+DECLARE
+    count integer := 0;
+    operator text;
+    operand text;
+    sql_query text;
+BEGIN
+    -- Parse the criteria into operator and operand
+    IF criteria ~ '^(<=|>=|<>|=|<|>).*' THEN
+        operator := substring(criteria FROM '^(<=|>=|<>|=|<|>)');
+        operand := substring(criteria FROM length(operator) + 1);
+    ELSE
+        -- Default operator is '='
+        operator := '=';
+        operand := criteria;
+    END IF;
+
+    -- Trim any surrounding whitespace
+    operand := trim(operand);
+
+    -- Build the SQL query dynamically
+    sql_query := format(
+        'SELECT COUNT(*) FROM unnest($1::%s) AS x(val) WHERE val %s %s',
+        pg_typeof(arr)::text,
+        operator,
+        quote_literal(operand)
+    );
+
+    EXECUTE sql_query INTO count USING arr;
+
+    RETURN count;
 END;
 $$;
