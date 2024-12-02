@@ -165,10 +165,6 @@ CREATE OR REPLACE FUNCTION public.ccountif(
 RETURNS integer
 LANGUAGE plpgsql
 AS $$
-/*
-    Author: Daniel Van Den Bosch
-    Date: 2024-12-02
- */
 DECLARE
     count integer := 0;
     operator text;
@@ -188,9 +184,9 @@ BEGIN
     -- Trim any surrounding whitespace
     operand := trim(operand);
 
-    -- Build the SQL query dynamically
+    -- Build the SQL query dynamically, casting val and operand to numeric
     sql_query := format(
-        'SELECT COUNT(*) FROM unnest($1::%s) AS x(val) WHERE val %s %s',
+        'SELECT COUNT(*) FROM unnest($1::%s) AS x(val) WHERE val::numeric %s %s::numeric',
         pg_typeof(arr)::text,
         operator,
         quote_literal(operand)
@@ -201,3 +197,4 @@ BEGIN
     RETURN count;
 END;
 $$;
+
