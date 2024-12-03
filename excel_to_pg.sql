@@ -50,41 +50,56 @@ $$;
 
 
 
-CREATE OR REPLACE FUNCTION public.iindex_int(
-    arr integer[],
-    row_num integer,
-    col_num integer DEFAULT 1
-)
-RETURNS integer
-LANGUAGE plpgsql
-AS $$
+create or replace function public.iindex_int(arr integer[], row_num integer, col_num integer DEFAULT 1) returns integer
+    language plpgsql
+as
+$$
 DECLARE
     result integer;
+    row_num_is_null boolean := FALSE;
+    col_num_is_null boolean := FALSE;
 BEGIN
     /*
         Author:  Daniel L. Van Den Bosch
         Date:    2024-12-02
      */
+    IF row_num IS NULL THEN
+        row_num_is_null := TRUE;
+    END IF;
     IF col_num IS NULL THEN
+        col_num_is_null := TRUE;
+    END IF;
+
+
+    IF col_num_is_null THEN
         -- Handle one-dimensional array
-        IF row_num IS NULL THEN
+        IF row_num_is_null THEN
             RAISE EXCEPTION 'row_num cannot be NULL for one-dimensional arrays';
         END IF;
         result := arr[row_num];
     ELSE
         -- Handle two-dimensional array
-        IF row_num IS NULL OR col_num IS NULL THEN
-            RAISE EXCEPTION 'row_num and col_num cannot be NULL for two-dimensional arrays';
+        IF row_num_is_null OR col_num_is_null THEN
+            IF row_num_is_null AND col_num_is_null THEN
+                --RAISE EXCEPTION 'row_num and col_num cannot be NULL for two-dimensional arrays. They are both NULL';
+                RETURN NULL;
+            ELSEIF row_num_is_null THEN
+                --RAISE EXCEPTION 'row_num cannot be NULL for two-dimensional arrays';
+                RETURN NULL;
+            ELSEIF col_num_is_null THEN
+                --RAISE EXCEPTION 'col_num cannot be NULL for two-dimensional arrays';
+                RETURN NULL;
+            END IF;
         END IF;
         result := arr[row_num][col_num];
     END IF;
     RETURN result;
 EXCEPTION
     WHEN array_subscript_error THEN
-        RAISE EXCEPTION 'Index out of bounds: row % col %', row_num, col_num;
+        --RAISE EXCEPTION 'Index out of bounds: row % col %', row_num, col_num;
+        RETURN NULL;
 END;
 $$;
-
 
 
 
